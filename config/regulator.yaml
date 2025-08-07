@@ -1,0 +1,12 @@
+database:
+  host: localhost
+  port: 3306
+  name: regulator_db
+  user: root
+  pass: password
+port: 8000
+org:
+  orgType: REGULATOR
+  orgId: 100000
+  signMethod: ECC
+  privateKey: -----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIBEIzLPgaLDvKSwjn6iOtMWWKz6wcvpZ1st83PzH6beHoAoGCCqGSM49\nAwEHoUQDQgAEV1awZEodrzWb/oFioDupRRnv+A4irKbBN/aQdCf7OvJkAv03BGAd\nJw1WanuWUTJJ0EyMAYqZ13ciIkSsODw3QQ==\n-----END EC PRIVATE KEY-----
