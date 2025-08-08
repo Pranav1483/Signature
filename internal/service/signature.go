@@ -8,9 +8,9 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"log"
 	"signature/internal/constants"
 
-	"github.com/consensys/gnark-crypto/ecc/stark-curve/ecdsa"
 	ecies "github.com/ecies/go/v2"
 )
 
@@ -83,9 +83,15 @@ func (e *ECCService) Encrypt(data []byte, key string) ([]byte, error) {
 	pubBytes := elliptic.Marshal(pubKey.Curve, pubKey.X, pubKey.Y)
 	eciesPublicKey, err := ecies.NewPublicKeyFromBytes(pubBytes)
 	if err != nil {
+		log.Println("85: ", err)
 		return nil, err
 	}
-	return ecies.Encrypt(eciesPublicKey, data)
+	encryptedData, err := ecies.Encrypt(eciesPublicKey, data)
+	if err != nil {
+		log.Println("91: ", err)
+		return nil, err
+	}
+	return encryptedData, nil
 }
 
 func (e *ECCService) Decrypt(data []byte, key string) ([]byte, error) {
@@ -93,7 +99,12 @@ func (e *ECCService) Decrypt(data []byte, key string) ([]byte, error) {
 	if block == nil {
 		return nil, constants.ErrDecodePEMBlock
 	}
-	eciesPrivateKey := ecies.NewPrivateKeyFromBytes(block.Bytes)
+	ecdsaKey, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	privBytes := ecdsaKey.D.Bytes()
+	eciesPrivateKey := ecies.NewPrivateKeyFromBytes(privBytes)
 	return ecies.Decrypt(eciesPrivateKey, data)
 }
 
