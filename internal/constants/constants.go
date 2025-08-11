@@ -17,8 +17,14 @@ var (
 )
 
 const (
-	RSA_SERVICE = "RSA"
-	ECC_SERVICE = "ECC"
+	RSA_SERVICE   = "RSA"
+	ECDSA_SERVICE = "ECDSA"
+)
+
+const (
+	PUBLIC_KEY      = "PUBLIC KEY"
+	RSA_PRIVATE_KEY = "PRIVATE KEY"
+	EC_PRIVATE_KEY  = "EC PRIVATE KEY"
 )
 
 const (

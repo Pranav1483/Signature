@@ -9,7 +9,7 @@ import (
 type Service struct {
 	organizationService *OrganizationService
 	payService          *PayService
-	eccService          *ECCService
+	ecdsaService        *ECDSAService
 	rsaService          *RSAService
 }
 
@@ -17,8 +17,8 @@ func (s *Service) GetSignatureService(serviceType string) (port.SignatureService
 	switch serviceType {
 	case constants.RSA_SERVICE:
 		return s.rsaService, nil
-	case constants.ECC_SERVICE:
-		return s.eccService, nil
+	case constants.ECDSA_SERVICE:
+		return s.ecdsaService, nil
 	default:
 		return nil, constants.ErrInvalidSignatureServiceType
 	}
@@ -34,7 +34,7 @@ func (s *Service) GetPayService() *PayService {
 
 func NewService(db *db.DB) *Service {
 	return &Service{
-		eccService:          NewECCService(),
+		ecdsaService:        NewECDSAService(),
 		rsaService:          NewRSAService(),
 		organizationService: NewOrganizationService(db),
 		payService:          NewPayService(db),

@@ -52,7 +52,6 @@ func main() {
 	case constants.ORG_REGULATOR:
 		router.POST(constants.ENDPOINT_ONBOARDBANK, handler.OnboardBank)
 	case constants.ORG_BANK:
-		router.POST(constants.ENDPOINT_PAY, handler.InitPay)
 		router.POST(constants.ENDPOINT_ONBOARDREGULATOR, handler.OnboardRegulator)
 	}
 	if err := router.Run(":" + constants.PORT); err != nil {

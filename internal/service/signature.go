@@ -1,63 +1,73 @@
 package service
 
 import (
+	"crypto"
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/asn1"
+	"encoding/base64"
 	"encoding/pem"
-	"errors"
 	"log"
+	"math/big"
 	"signature/internal/constants"
-
-	ecies "github.com/ecies/go/v2"
 )
 
 type RSAService struct {
 	ValidationType string
 }
 
-func (r *RSAService) Encrypt(data []byte, key string) ([]byte, error) {
-	var result []byte
+func (r *RSAService) Generate(data []byte, key string) ([]byte, error) {
 	block, _ := pem.Decode([]byte(key))
-	if block == nil {
+	if block == nil || block.Type != constants.RSA_PRIVATE_KEY {
 		return nil, constants.ErrDecodePEMBlock
 	}
-	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
 		return nil, err
 	}
-	result, err = rsa.EncryptPKCS1v15(rand.Reader, publicKey.(*rsa.PublicKey), data)
+
+	hash := sha256.Sum256(data)
+	signature, err := rsa.SignPSS(rand.Reader, privateKey.(*rsa.PrivateKey), crypto.SHA256, hash[:], nil)
 	if err != nil {
 		return nil, err
 	}
-	return result, nil
+
+	sigB64 := make([]byte, base64.StdEncoding.EncodedLen(len(signature)))
+	base64.StdEncoding.Encode(sigB64, signature)
+
+	return sigB64, nil
 }
 
-func (r *RSAService) Decrypt(data []byte, key string) ([]byte, error) {
-	var result []byte
+func (r *RSAService) Validate(data []byte, signature string, key string) (bool, error) {
 	block, _ := pem.Decode([]byte(key))
-	if block == nil {
-		return nil, constants.ErrDecodePEMBlock
+	if block == nil || block.Type != constants.PUBLIC_KEY {
+		return false, constants.ErrDecodePEMBlock
 	}
-	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, err
-	}
-	result, err = rsa.DecryptPKCS1v15(rand.Reader, privateKey, data)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
-}
-
-func (r *RSAService) ValidateSignature(data []byte, signature string, key string) (bool, error) {
-	encrypted, err := r.Encrypt(data, key)
+	pubIface, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return false, err
 	}
-	return string(encrypted) == signature, nil
+
+	pub, ok := pubIface.(*rsa.PublicKey)
+	if !ok {
+		return false, constants.ErrRSAKey
+	}
+
+	sig, err := base64.StdEncoding.DecodeString(string(signature))
+	if err != nil {
+		return false, err
+	}
+
+	hash := sha256.Sum256(data)
+
+	err = rsa.VerifyPSS(pub, crypto.SHA256, hash[:], sig, nil)
+	if err != nil {
+		return false, nil
+	}
+	return true, nil
 }
 
 func NewRSAService() *RSAService {
@@ -66,58 +76,65 @@ func NewRSAService() *RSAService {
 	}
 }
 
-type ECCService struct {
+type ECDSAService struct {
 	ValidationType string
 }
 
-func (e *ECCService) Encrypt(data []byte, key string) ([]byte, error) {
-	block, _ := pem.Decode([]byte(key))
-	if block == nil {
-		return nil, constants.ErrDecodePEMBlock
-	}
-	pubIfc, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return nil, errors.New("unable to parse PKIX public key")
-	}
-	pubKey := pubIfc.(*ecdsa.PublicKey)
-	pubBytes := elliptic.Marshal(pubKey.Curve, pubKey.X, pubKey.Y)
-	eciesPublicKey, err := ecies.NewPublicKeyFromBytes(pubBytes)
-	if err != nil {
-		log.Println("85: ", err)
-		return nil, err
-	}
-	encryptedData, err := ecies.Encrypt(eciesPublicKey, data)
-	if err != nil {
-		log.Println("91: ", err)
-		return nil, err
-	}
-	return encryptedData, nil
+type asn1Sig struct {
+	R, S *big.Int
 }
 
-func (e *ECCService) Decrypt(data []byte, key string) ([]byte, error) {
+func (e *ECDSAService) Generate(data []byte, key string) ([]byte, error) {
 	block, _ := pem.Decode([]byte(key))
-	if block == nil {
+	if block == nil || block.Type != constants.EC_PRIVATE_KEY {
 		return nil, constants.ErrDecodePEMBlock
 	}
-	ecdsaKey, err := x509.ParseECPrivateKey(block.Bytes)
+	priv, err := x509.ParseECPrivateKey(block.Bytes)
 	if err != nil {
 		return nil, err
 	}
-	privBytes := ecdsaKey.D.Bytes()
-	eciesPrivateKey := ecies.NewPrivateKeyFromBytes(privBytes)
-	return ecies.Decrypt(eciesPrivateKey, data)
+	hash := sha256.Sum256(data)
+	r, s, err := ecdsa.Sign(rand.Reader, priv, hash[:])
+	if err != nil {
+		return nil, err
+	}
+	sigBytes, err := asn1.Marshal(asn1Sig{R: r, S: s})
+	if err != nil {
+		return nil, err
+	}
+	sigB4 := make([]byte, base64.StdEncoding.EncodedLen(len(sigBytes)))
+	base64.StdEncoding.Encode(sigB4, sigBytes)
+	return sigB4, nil
 }
 
-func (e *ECCService) ValidateSignature(data []byte, signature string, key string) (bool, error) {
-	encrypted, err := e.Encrypt(data, key)
+func (e *ECDSAService) Validate(data []byte, signature string, key string) (bool, error) {
+	block, _ := pem.Decode([]byte(key))
+	log.Println(block)
+	if block == nil || block.Type != constants.PUBLIC_KEY {
+		return false, constants.ErrDecodePEMBlock
+	}
+	pubIface, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return false, err
 	}
-	return string(encrypted) == signature, nil
+	pub, ok := pubIface.(*ecdsa.PublicKey)
+	if !ok {
+		return false, constants.ErrECDSAKey
+	}
+	sigBytes, err := base64.StdEncoding.DecodeString(signature)
+	if err != nil {
+		return false, err
+	}
+	var sig asn1Sig
+	if _, err = asn1.Unmarshal(sigBytes, &sig); err != nil {
+		return false, err
+	}
+	hash := sha256.Sum256(data)
+	return ecdsa.Verify(pub, hash[:], sig.R, sig.S), nil
 }
 
-func NewECCService() *ECCService {
-	return &ECCService{
-		ValidationType: constants.ECC_SERVICE,
+func NewECDSAService() *ECDSAService {
+	return &ECDSAService{
+		ValidationType: constants.ECDSA_SERVICE,
 	}
 }

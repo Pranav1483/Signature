@@ -3,18 +3,18 @@ package models
 type ReqPayload struct {
 	Head      Head      `json:"Head" xml:"Head"`
 	Txn       Txn       `json:"Txn" xml:"Txn"`
-	Signature Signature `json:"signature" xml:"Signature"`
+	Signature Signature `json:"signature,omitempty" xml:"Signature,omitempty"`
 }
 
 type RespPayload struct {
 	Head      Head      `json:"Head" xml:"Head"`
 	Res       Res       `json:"res" xml:"Res"`
-	Signature Signature `json:"signature" xml:"Signature"`
+	Signature Signature `json:"signature,omitempty" xml:"Signature,omitempty"`
 }
 
 type ReqOnboard struct {
-	Head      Head      `json:"Head" xml:"Head"`
-	Onboard   Onboard   `json:"Onboard" xml:"Onboard"`
+	Head    Head    `json:"Head" xml:"Head"`
+	Onboard Onboard `json:"Onboard" xml:"Onboard"`
 }
 
 type RespOnboard struct {
@@ -41,10 +41,11 @@ type Txn struct {
 }
 
 type Res struct {
-	Result  string `json:"result" xml:"result,attr"`
-	ErrCode string `json:"errCode" xml:"errCode,attr"`
-	Message string `json:"message" xml:"message,attr"`
-	OrgId   string `json:"orgId" xml:"orgId,attr"`
+	Result        string `json:"result" xml:"result,attr"`
+	ErrCode       string `json:"errCode" xml:"errCode,attr"`
+	Message       string `json:"message" xml:"message,attr"`
+	SenderOrgId   string `json:"senderOrgId" xml:"senderOrgId,attr"`
+	ReceiverOrgId string `json:"receiverOrgId" xml:"receiverOrgId,attr"`
 }
 
 type Onboard struct {
@@ -56,7 +57,7 @@ type Onboard struct {
 }
 
 type Signature struct {
-	Sign string `json:"sign" xml:"Sign"`
+	Sign string `json:"sign,omitempty" xml:"Sign,omitempty"`
 }
 
 type Ack struct {
