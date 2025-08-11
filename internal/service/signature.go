@@ -3,6 +3,7 @@ package service
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -136,5 +137,55 @@ func (e *ECDSAService) Validate(data []byte, signature string, key string) (bool
 func NewECDSAService() *ECDSAService {
 	return &ECDSAService{
 		ValidationType: constants.ECDSA_SERVICE,
+	}
+}
+
+type EDDSAService struct {
+	ValidationType string
+}
+
+func (e *EDDSAService) Generate(data []byte, key string) ([]byte, error) {
+	block, _ := pem.Decode([]byte(key))
+	if block == nil || block.Type != constants.ED_PRIVATE_KEY {
+		return nil, constants.ErrDecodePEMBlock
+	}
+	keyIface, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	priv, ok := keyIface.(ed25519.PrivateKey)
+	if !ok {
+		return nil, constants.ErrED25519Key
+	}
+	sig := ed25519.Sign(priv, data)
+	sigB64 := make([]byte, base64.StdEncoding.EncodedLen(len(sig)))
+	base64.StdEncoding.Encode(sigB64, sig)
+	return sigB64, nil
+}
+
+func (e *EDDSAService) Validate(data []byte, signature string, key string) (bool, error) {
+	block, _ := pem.Decode([]byte(key))
+	if block == nil || block.Type != constants.PUBLIC_KEY {
+		return false, constants.ErrDecodePEMBlock
+	}
+	pubIface, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return false, err
+	}
+	pub, ok := pubIface.(ed25519.PublicKey)
+	if !ok {
+		return false, constants.ErrED25519Key
+	}
+	sig, err := base64.StdEncoding.DecodeString(signature)
+	if err != nil {
+		return false, err
+	}
+	valid := ed25519.Verify(pub, data, sig)
+	return valid, nil
+}
+
+func NewEDDSAService() *EDDSAService {
+	return &EDDSAService{
+		ValidationType: constants.EDDSA_SERVICE,
 	}
 }

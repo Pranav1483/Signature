@@ -1,6 +1,8 @@
 package inbound
 
 import (
+	"encoding/xml"
+	"fmt"
 	"log"
 	"net/http"
 	"signature/internal/constants"
@@ -17,7 +19,8 @@ func (h *Handler) ReqPay(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid data sent"})
 		return
 	}
-
+	xmlData, _ := xml.Marshal(reqPay)
+	fmt.Println(string(xmlData))
 	go func() {
 		h.worker <- func() {
 			h.service.GetPayService().HandleReqPay(reqPay, h.service.GetSignatureService)
@@ -43,7 +46,8 @@ func (h *Handler) RespPay(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid data"})
 		return
 	}
-
+	xmlData, _ := xml.Marshal(respPay)
+	fmt.Println(string(xmlData))
 	go func() {
 		h.worker <- func() {
 			h.service.GetPayService().HandleRespPay(respPay, h.service.GetSignatureService)

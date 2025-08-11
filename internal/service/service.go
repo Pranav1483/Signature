@@ -10,6 +10,7 @@ type Service struct {
 	organizationService *OrganizationService
 	payService          *PayService
 	ecdsaService        *ECDSAService
+	eddsaService        *EDDSAService
 	rsaService          *RSAService
 }
 
@@ -19,6 +20,8 @@ func (s *Service) GetSignatureService(serviceType string) (port.SignatureService
 		return s.rsaService, nil
 	case constants.ECDSA_SERVICE:
 		return s.ecdsaService, nil
+	case constants.EDDSA_SERVICE:
+		return s.eddsaService, nil
 	default:
 		return nil, constants.ErrInvalidSignatureServiceType
 	}
@@ -35,6 +38,7 @@ func (s *Service) GetPayService() *PayService {
 func NewService(db *db.DB) *Service {
 	return &Service{
 		ecdsaService:        NewECDSAService(),
+		eddsaService:        NewEDDSAService(),
 		rsaService:          NewRSAService(),
 		organizationService: NewOrganizationService(db),
 		payService:          NewPayService(db),
